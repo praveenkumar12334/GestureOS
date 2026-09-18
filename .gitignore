@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+venv/
+env/
+gesture_env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Python environment
+pyvenv.cfg
+
+# Generated screenshots
+screenshot_*.png
+
+# OS
+.DS_Store
+Thumbs.db
