@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>GestureOS — Hand Gesture Control</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #080b0f;
+    --surface: #0e1318;
+    --border: #1a2330;
+    --accent: #00f5a0;
+    --accent2: #00c9f5;
+    --accent3: #f500a0;
+    --text: #e8edf2;
+    --muted: #4a5568;
+    --glow: 0 0 30px rgba(0,245,160,0.3);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    overflow-x: hidden;
+    cursor: none;
+  }
+
+  /* Custom cursor */
+  .cursor {
+    width: 12px; height: 12px;
+    background: var(--accent);
+    border-radius: 50%;
+    position: fixed;
+    pointer-events: none;
+    z-index: 9999;
+    transition: transform 0.1s;
+    mix-blend-mode: difference;
+  }
+  .cursor-ring {
+    width: 36px; height: 36px;
+    border: 1px solid var(--accent);
+    border-radius: 50%;
+    position: fixed;
+    pointer-events: none;
+    z-index: 9998;
+    transition: all 0.15s ease;
+    opacity: 0.5;
+  }
+
+  /* Noise overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.4;
+  }
+
+  /* Grid background */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: 
+      linear-gradient(rgba(0,245,160,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,245,160,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* NAV */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0;
+    z-index: 500;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 60px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(8,11,15,0.85);
+    backdrop-filter: blur(20px);
+  }
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.8rem;
+    letter-spacing: 4px;
+    color: var(--accent);
+    text-shadow: var(--glow);
+  }
+  .logo span { color: var(--text); }
+  nav ul { list-style: none; display: flex; gap: 40px; }
+  nav ul a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.75rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    transition: color 0.2s;
+  }
+  nav ul a:hover { color: var(--accent); }
+  .nav-badge {
+    background: var(--accent);
+    color: var(--bg);
+    font-size: 0.65rem;
+    font-weight: 500;
+    padding: 6px 16px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  /* HERO */
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    padding: 120px 60px 60px;
+    z-index: 1;
+    overflow: hidden;
+  }
+  .hero-content { max-width: 700px; z-index: 2; }
+  .hero-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(0,245,160,0.08);
+    border: 1px solid rgba(0,245,160,0.2);
+    padding: 8px 16px;
+    font-size: 0.7rem;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 30px;
+    animation: fadeUp 0.6s ease both;
+  }
+  .hero-tag::before {
+    content: '';
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(1.5); }
+  }
+  .hero h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(4rem, 10vw, 8rem);
+    line-height: 0.9;
+    letter-spacing: 2px;
+    margin-bottom: 30px;
+    animation: fadeUp 0.6s 0.1s ease both;
+  }
+  .hero h1 .line2 {
+    color: transparent;
+    -webkit-text-stroke: 1px var(--accent);
+    display: block;
+  }
+  .hero p {
+    font-size: 0.95rem;
+    line-height: 1.8;
+    color: var(--muted);
+    max-width: 500px;
+    margin-bottom: 50px;
+    animation: fadeUp 0.6s 0.2s ease both;
+  }
+  .hero-actions {
+    display: flex;
+    gap: 20px;
+    animation: fadeUp 0.6s 0.3s ease both;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    padding: 14px 32px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.8rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: none;
+    transition: all 0.2s;
+    text-decoration: none;
+    display: inline-block;
+  }
+  .btn-primary:hover {
+    background: var(--text);
+    box-shadow: 0 0 40px rgba(0,245,160,0.4);
+    transform: translateY(-2px);
+  }
+  .btn-secondary {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 14px 32px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.8rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: none;
+    transition: all 0.2s;
+    text-decoration: none;
+    display: inline-block;
+  }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Hero visual */
+  .hero-visual {
+    position: absolute;
+    right: -100px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 600px; height: 600px;
+    z-index: 1;
+    animation: fadeUp 1s 0.4s ease both;
+  }
+  .hand-ring {
+    position: absolute;
+    border-radius: 50%;
+    border: 1px solid;
+    animation: spinRing linear infinite;
+  }
+  .hand-ring:nth-child(1) {
+    inset: 0;
+    border-color: rgba(0,245,160,0.15);
+    animation-duration: 20s;
+  }
+  .hand-ring:nth-child(2) {
+    inset: 60px;
+    border-color: rgba(0,201,245,0.15);
+    animation-duration: 15s;
+    animation-direction: reverse;
+  }
+  .hand-ring:nth-child(3) {
+    inset: 120px;
+    border-color: rgba(245,0,160,0.15);
+    animation-duration: 10s;
+  }
+  @keyframes spinRing {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  .hand-center {
+    position: absolute;
+    inset: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9rem;
+    animation: float 3s ease-in-out infinite;
+    filter: drop-shadow(0 0 40px rgba(0,245,160,0.5));
+  }
+  @keyframes float {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(-20px); }
+  }
+
+  /* Stats bar */
+  .stats-bar {
+    position: relative;
+    z-index: 2;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .stat-item {
+    padding: 30px 40px;
+    border-right: 1px solid var(--border);
+    animation: fadeUp 0.6s ease both;
+  }
+  .stat-item:last-child { border-right: none; }
+  .stat-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.5rem;
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .stat-label {
+    font-size: 0.7rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* SECTION */
+  section {
+    position: relative;
+    z-index: 2;
+    padding: 100px 60px;
+  }
+  .section-tag {
+    font-size: 0.7rem;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-tag::after {
+    content: '';
+    flex: 1;
+    max-width: 60px;
+    height: 1px;
+    background: var(--accent);
+    opacity: 0.4;
+  }
+  .section-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(2.5rem, 5vw, 4rem);
+    letter-spacing: 2px;
+    margin-bottom: 60px;
+    line-height: 1;
+  }
+
+  /* HOW IT WORKS */
+  .how-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+  }
+  .how-card {
+    background: var(--bg);
+    padding: 50px 40px;
+    position: relative;
+    overflow: hidden;
+    transition: background 0.3s;
+  }
+  .how-card:hover { background: var(--surface); }
+  .how-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), transparent);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.3s;
+  }
+  .how-card:hover::before { transform: scaleX(1); }
+  .how-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 5rem;
+    color: var(--border);
+    line-height: 1;
+    margin-bottom: 20px;
+    transition: color 0.3s;
+  }
+  .how-card:hover .how-num { color: rgba(0,245,160,0.1); }
+  .how-icon { font-size: 2.5rem; margin-bottom: 20px; }
+  .how-card h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: var(--text);
+  }
+  .how-card p { font-size: 0.8rem; line-height: 1.7; color: var(--muted); }
+
+  /* GESTURES */
+  .gestures-section { background: var(--surface); }
+  .gestures-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+  }
+  .gesture-card {
+    background: var(--surface);
+    padding: 30px;
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    transition: background 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .gesture-card:hover { background: #111820; }
+  .gesture-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(0,245,160,0.03), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .gesture-card:hover::after { opacity: 1; }
+  .gesture-emoji {
+    font-size: 2.2rem;
+    line-height: 1;
+    flex-shrink: 0;
+    filter: drop-shadow(0 0 8px rgba(0,245,160,0.3));
+  }
+  .gesture-info {}
+  .gesture-name {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+  .gesture-desc {
+    font-size: 0.75rem;
+    color: var(--muted);
+    line-height: 1.5;
+    margin-bottom: 10px;
+  }
+  .gesture-tag {
+    display: inline-block;
+    font-size: 0.65rem;
+    letter-spacing: 1px;
+    padding: 3px 10px;
+    border: 1px solid;
+    text-transform: uppercase;
+  }
+  .tag-mouse { border-color: rgba(0,245,160,0.3); color: var(--accent); }
+  .tag-system { border-color: rgba(245,0,160,0.3); color: var(--accent3); }
+  .tag-media { border-color: rgba(0,201,245,0.3); color: var(--accent2); }
+  .tag-control { border-color: rgba(255,200,0,0.3); color: #ffc800; }
+
+  /* TOGGLE SECTION */
+  .toggle-section {
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .toggle-wrapper {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    align-items: center;
+  }
+  .toggle-visual {
+    position: relative;
+    aspect-ratio: 1;
+    max-width: 420px;
+  }
+  .toggle-screen {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 30px;
+    font-size: 0.75rem;
+    line-height: 2;
+  }
+  .toggle-screen .line { display: flex; align-items: center; gap: 12px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot-green { background: var(--accent); animation: pulse 2s infinite; }
+  .dot-blue { background: var(--accent2); }
+  .dot-red { background: var(--accent3); }
+  .dot-yellow { background: #ffc800; }
+  .toggle-label { color: var(--muted); }
+  .toggle-value { color: var(--text); margin-left: auto; }
+
+  /* Big toggle button */
+  .big-toggle {
+    margin-top: 40px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+  .toggle-btn {
+    width: 80px; height: 44px;
+    background: var(--border);
+    border-radius: 22px;
+    position: relative;
+    cursor: none;
+    transition: background 0.3s;
+    border: none;
+    flex-shrink: 0;
+  }
+  .toggle-btn.active { background: var(--accent); }
+  .toggle-btn::after {
+    content: '';
+    position: absolute;
+    width: 36px; height: 36px;
+    background: var(--bg);
+    border-radius: 50%;
+    top: 4px; left: 4px;
+    transition: transform 0.3s;
+  }
+  .toggle-btn.active::after { transform: translateX(36px); }
+  .toggle-text {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
+  .toggle-status {
+    font-size: 0.75rem;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+  .toggle-status.on { color: var(--accent); }
+
+  /* STATUS INDICATOR */
+  .status-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 20px 24px;
+    margin-top: 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .status-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+  }
+  .status-key { color: var(--muted); letter-spacing: 1px; }
+  .status-val { color: var(--text); }
+  .status-val.active { color: var(--accent); }
+
+  /* TECH STACK */
+  .tech-section {}
+  .tech-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+  }
+  .tech-card {
+    background: var(--bg);
+    padding: 40px 30px;
+    text-align: center;
+    transition: background 0.2s;
+  }
+  .tech-card:hover { background: var(--surface); }
+  .tech-icon { font-size: 2.5rem; margin-bottom: 16px; }
+  .tech-name {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.85rem;
+    margin-bottom: 6px;
+  }
+  .tech-role { font-size: 0.7rem; color: var(--muted); letter-spacing: 1px; }
+
+  /* SETUP */
+  .setup-section { background: var(--surface); }
+  .setup-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+  }
+  .setup-step {
+    background: var(--surface);
+    padding: 30px 40px;
+    display: grid;
+    grid-template-columns: 60px 1fr auto;
+    align-items: center;
+    gap: 30px;
+    transition: background 0.2s;
+  }
+  .setup-step:hover { background: #111820; }
+  .step-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    color: var(--accent);
+    opacity: 0.5;
+  }
+  .step-content h4 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .step-content p { font-size: 0.8rem; color: var(--muted); }
+  .step-code {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 10px 20px;
+    font-size: 0.75rem;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+
+  /* FOOTER */
+  footer {
+    position: relative;
+    z-index: 2;
+    border-top: 1px solid var(--border);
+    padding: 40px 60px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .footer-logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.4rem;
+    letter-spacing: 4px;
+    color: var(--accent);
+  }
+  .footer-text { font-size: 0.75rem; color: var(--muted); }
+
+  /* ANIMATIONS */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Scrolling ticker */
+  .ticker {
+    background: var(--accent);
+    color: var(--bg);
+    padding: 12px 0;
+    overflow: hidden;
+    white-space: nowrap;
+    position: relative;
+    z-index: 2;
+  }
+  .ticker-inner {
+    display: inline-block;
+    animation: ticker 20s linear infinite;
+    font-size: 0.75rem;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+  @keyframes ticker {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  /* Mobile */
+  @media (max-width: 768px) {
+    nav { padding: 16px 20px; }
+    nav ul { display: none; }
+    .hero { padding: 100px 20px 60px; }
+    .hero-visual { display: none; }
+    section { padding: 60px 20px; }
+    .stats-bar { grid-template-columns: repeat(2, 1fr); }
+    .how-grid, .tech-grid { grid-template-columns: 1fr; }
+    .toggle-wrapper { grid-template-columns: 1fr; }
+    footer { flex-direction: column; gap: 20px; text-align: center; }
+    .setup-step { grid-template-columns: 40px 1fr; }
+    .step-code { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<!-- NAV -->
+<nav>
+  <div class="logo">Gesture<span>OS</span></div>
+  <ul>
+    <li><a href="#gestures">Gestures</a></li>
+    <li><a href="#how">How It Works</a></li>
+    <li><a href="#setup">Setup</a></li>
+    <li><a href="#tech">Tech</a></li>
+  </ul>
+  <div class="nav-badge">v2.0 Live</div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-content">
+    <div class="hero-tag">AI-Powered · Real-Time · Zero Touch</div>
+    <h1>
+      CONTROL YOUR<br>
+      <span class="line2">MACHINE</span>
+    </h1>
+    <p>Advanced hand gesture recognition system. Move your cursor, click, scroll, control volume and brightness — all without touching your keyboard or mouse.</p>
+    <div class="hero-actions">
+      <a href="#setup" class="btn-primary">Get Started</a>
+      <a href="#gestures" class="btn-secondary">View Gestures</a>
+    </div>
+  </div>
+  <div class="hero-visual">
+    <div class="hand-ring"></div>
+    <div class="hand-ring"></div>
+    <div class="hand-ring"></div>
+    <div class="hand-center">🖐</div>
+  </div>
+</section>
+
+<!-- TICKER -->
+<div class="ticker">
+  <div class="ticker-inner">
+    CURSOR CONTROL &nbsp;·&nbsp; SINGLE CLICK &nbsp;·&nbsp; DOUBLE CLICK &nbsp;·&nbsp; RIGHT CLICK &nbsp;·&nbsp; SCROLL UP &nbsp;·&nbsp; SCROLL DOWN &nbsp;·&nbsp; ZOOM IN &nbsp;·&nbsp; ZOOM OUT &nbsp;·&nbsp; VOLUME UP &nbsp;·&nbsp; VOLUME DOWN &nbsp;·&nbsp; BRIGHTNESS &nbsp;·&nbsp; SCREENSHOT &nbsp;·&nbsp; SYSTEM LOCK &nbsp;·&nbsp;
+    CURSOR CONTROL &nbsp;·&nbsp; SINGLE CLICK &nbsp;·&nbsp; DOUBLE CLICK &nbsp;·&nbsp; RIGHT CLICK &nbsp;·&nbsp; SCROLL UP &nbsp;·&nbsp; SCROLL DOWN &nbsp;·&nbsp; ZOOM IN &nbsp;·&nbsp; ZOOM OUT &nbsp;·&nbsp; VOLUME UP &nbsp;·&nbsp; VOLUME DOWN &nbsp;·&nbsp; BRIGHTNESS &nbsp;·&nbsp; SCREENSHOT &nbsp;·&nbsp; SYSTEM LOCK &nbsp;·&nbsp;
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats-bar">
+  <div class="stat-item reveal">
+    <div class="stat-num">14</div>
+    <div class="stat-label">Gesture Commands</div>
+  </div>
+  <div class="stat-item reveal">
+    <div class="stat-num">0.7</div>
+    <div class="stat-label">Detection Confidence</div>
+  </div>
+  <div class="stat-item reveal">
+    <div class="stat-num">21</div>
+    <div class="stat-label">Hand Landmarks</div>
+  </div>
+  <div class="stat-item reveal">
+    <div class="stat-num">60</div>
+    <div class="stat-label">FPS Target</div>
+  </div>
+</div>
+
+<!-- HOW IT WORKS -->
+<section id="how">
+  <div class="section-tag">Process</div>
+  <h2 class="section-title reveal">HOW IT WORKS</h2>
+  <div class="how-grid">
+    <div class="how-card reveal">
+      <div class="how-num">01</div>
+      <div class="how-icon">📷</div>
+      <h3>Camera Capture</h3>
+      <p>OpenCV captures live video from your webcam at up to 60fps, flipping the frame for a mirror-like natural interaction experience.</p>
+    </div>
+    <div class="how-card reveal">
+      <div class="how-num">02</div>
+      <div class="how-icon">🧠</div>
+      <h3>MediaPipe Detection</h3>
+      <p>Google's MediaPipe Hands model detects 21 key landmarks on your hand in real-time with 70%+ confidence threshold.</p>
+    </div>
+    <div class="how-card reveal">
+      <div class="how-num">03</div>
+      <div class="how-icon">📐</div>
+      <h3>Gesture Mapping</h3>
+      <p>Finger states and tip distances are calculated mathematically to classify which gesture you're performing each frame.</p>
+    </div>
+    <div class="how-card reveal">
+      <div class="how-num">04</div>
+      <div class="how-icon">⚡</div>
+      <h3>PyAutoGUI Execution</h3>
+      <p>Detected gestures instantly trigger OS-level mouse and keyboard actions via PyAutoGUI with minimal latency.</p>
+    </div>
+    <div class="how-card reveal">
+      <div class="how-num">05</div>
+      <div class="how-icon">🔊</div>
+      <h3>System Controls</h3>
+      <p>Volume is controlled via Windows Core Audio API (pycaw), brightness via screen_brightness_control library.</p>
+    </div>
+    <div class="how-card reveal">
+      <div class="how-num">06</div>
+      <div class="how-icon">🖥️</div>
+      <h3>Visual Feedback</h3>
+      <p>Real-time on-screen labels show the active gesture in the OpenCV window, so you always know what's being detected.</p>
+    </div>
+  </div>
+</section>
+
+<!-- GESTURES -->
+<section id="gestures" class="gestures-section">
+  <div class="section-tag">Reference</div>
+  <h2 class="section-title reveal">ALL GESTURES</h2>
+  <div class="gestures-grid">
+
+    <div class="gesture-card reveal">
+      <div class="gesture-emoji">☝️</div>
+      <div class="gesture-info">
+        <div class="gesture-name">Cursor Move</div>
+        <div class="gesture-desc">Index finger only pointing up. Hand position maps directly to screen coordinates.</div>
+        <span class="gesture-tag tag-mouse">Mouse</span>
+      </div>
+    </div>
+
+    <div class="gesture-card reveal">
+      <div class="gesture-emoji">👌</div>
+      <div class="gesture-info">
+        <div class="gesture-name">Single Click</div>
+        <div class="gesture-desc">Touch thumb tip to index tip. Triggers a left mouse click at current cursor position.</div>
+        <span class="gesture-tag tag-mouse">Mouse</span>
+      </div>
+    </div>
+
+    <div class="gesture-card reveal">
+      <div class="gesture-emoji">👌</div>
+      <div class="gesture-info">
+        <div class="gesture-name">Double Click</div>
+        <div class="gesture-desc">Touch thumb + index twice within 0.4 seconds. Opens files and links.</div>
+        <span class="gesture-tag tag-mouse">Mouse</span>
+      </div>
+    </div>
+
+    <div class="gesture-card reveal">
+      <div class="gesture-emoji">🖕</div>
+      <div class="gesture-info">
+        <div class="gesture-name">Right Click</div>
+        <div class="gesture-desc">Middle finger only pointing up. Opens context menu at current cursor position.</div>
+        <span class="gesture-tag tag-mouse">Mouse</span>
+      </div>
+    </div>
+
+    <div class="gesture-card reveal">
+      <div class="gesture-emoji">✌️</div>
+      <div class="gesture-info">
+        <div class="gesture-name">Scroll Up</div>
+        <div class="gesture-desc">Index + Middle fingers up, raise hand high (y &lt; 0.4 of frame). Fast scroll.</div>
+        <span class="gesture-tag tag-mouse">Mouse</span>
+      </div>
+    </div>
+
+    <div class="gesture-card reveal">
+      <div class="gesture-emoji">✌️</div>
+      <div class="gesture-info">
+        <div class="gesture-name">Scroll Down</div>
+        <div class="gesture-desc">Index + Middle fingers up, lower hand down (y &gt; 0.6 of frame). Fast scroll.</div>
+        <span class="gesture-tag tag-mouse">Mouse</span>
+      </div>
+    </div>
+
+    <div class="gesture-card reveal">
+      <div class="gesture-emoji">🤞</div>
+      <div class="gesture-info">
+        <div class="gesture-name">Zoom In</div>
+        <div class="gesture-desc">Middle + Ring fingers up, spread them far apart. Triggers Ctrl + on active window.</div>
+        <span class="gesture-tag tag-control">Control</span>
+      </div>
+    </div>
+
+    <div class="gesture-card reveal">
+      <div class="gesture-emoji">🤞</div>
+      <div class="gesture-info">
+        <div class="gesture-name">Zoom Out</div>
+        <div class="gesture-desc">Middle + Ring fingers up, hold them close together. Triggers Ctrl - on active window.</div>
+        <span class="gesture-tag tag-control">Control</span>
+      </div>
+    </div>
+
+    <div class="gesture-card reveal">
+      <div class="gesture-emoji">🤙</div>
+      <div class="gesture-info">
+        <div class="gesture-name">Volume Up</div>
+        <div class="gesture-desc">Index + Pinky up, spread fingers far apart. Volume scales with finger distance.</div>
+        <span class="gesture-tag tag-control">Control</span>
+      </div>
+    </div>
+
+    <div class="gesture-card reveal">
+      <div class="gesture-emoji">🤙</div>
+      <div class="gesture-info">
+        <div class="gesture-name">Volume Down</div>
+        <div class="gesture-desc">Index + Pinky up, hold fingers close together. Volume scales with finger distance.</div>
+        <span class="gesture-tag tag-control">Control</span>
+      </div>
+    </div>
+
+    <div class="gesture-card reveal">
+      <div class="gesture-emoji">🌟</div>
+      <div class="gesture-info">
+        <div class="gesture-name">Brightness Up</div>
+        <div class="gesture-desc">Pinky only up, thumb held far from pinky. Increases brightness by 10% per trigger.</div>
+        <span class="gesture-tag tag-control">Control</span>
+      </div>
+    </div>
+
+    <div class="gesture-card reveal">
+      <div class="gesture-emoji">🌑</div>
+      <div class="gesture-info">
+        <div class="gesture-name">Brightness Down</div>
+        <div class="gesture-desc">Pinky only up, thumb held close to pinky. Decreases brightness by 10% per trigger.</div>
+        <span class="gesture-tag tag-control">Control</span>
+      </div>
+    </div>
+
+    <div class="gesture-card reveal">
+      <div class="gesture-emoji">🖐️</div>
+      <div class="gesture-info">
+        <div class="gesture-name">Screenshot</div>
+        <div class="gesture-desc">All 4 fingers up. Saves screenshot as PNG with timestamp. 2 second cooldown.</div>
+        <span class="gesture-tag tag-system">System</span>
+      </div>
+    </div>
+
+    <div class="gesture-card reveal">
+      <div class="gesture-emoji">✊</div>
+      <div class="gesture-info">
+        <div class="gesture-name">Lock System</div>
+        <div class="gesture-desc">Closed fist, hold for 2 seconds. Locks Windows workstation immediately.</div>
+        <span class="gesture-tag tag-system">System</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- TOGGLE DEMO -->
+<section class="toggle-section">
+  <div class="toggle-wrapper">
+    <div>
+      <div class="section-tag">Control Panel</div>
+      <h2 class="section-title reveal">VIRTUAL MOUSE<br>TOGGLE</h2>
+      <p style="font-size:0.85rem;color:var(--muted);line-height:1.8;margin-bottom:30px;">
+        Connect this website to the Python backend via Flask + WebSocket to activate and deactivate the gesture engine in real time from any browser.
+      </p>
+      <div class="big-toggle">
+        <button class="toggle-btn" id="mainToggle" onclick="toggleGesture()"></button>
+        <div>
+          <div class="toggle-text">Gesture Engine</div>
+          <div class="toggle-status" id="toggleStatus">INACTIVE</div>
+        </div>
+      </div>
+      <div class="status-panel reveal">
+        <div class="status-row">
+          <span class="status-key">STATUS</span>
+          <span class="status-val" id="statusVal">Offline</span>
+        </div>
+        <div class="status-row">
+          <span class="status-key">CAMERA</span>
+          <span class="status-val" id="cameraVal">Not detected</span>
+        </div>
+        <div class="status-row">
+          <span class="status-key">LAST GESTURE</span>
+          <span class="status-val" id="gestureVal">None</span>
+        </div>
+        <div class="status-row">
+          <span class="status-key">HANDS DETECTED</span>
+          <span class="status-val" id="handsVal">0</span>
+        </div>
+        <div class="status-row">
+          <span class="status-key">SESSION TIME</span>
+          <span class="status-val" id="timeVal">00:00</span>
+        </div>
+      </div>
+    </div>
+    <div class="toggle-visual reveal">
+      <div class="toggle-screen">
+        <div class="line"><span class="dot dot-green"></span><span class="toggle-label">server</span><span class="toggle-value" id="serverStatus">waiting...</span></div>
+        <div class="line"><span class="dot dot-blue"></span><span class="toggle-label">mediapipe</span><span class="toggle-value" id="mpStatus">idle</span></div>
+        <div class="line"><span class="dot dot-yellow"></span><span class="toggle-label">camera_feed</span><span class="toggle-value" id="camStatus">off</span></div>
+        <div class="line"><span class="dot dot-red"></span><span class="toggle-label">gesture_engine</span><span class="toggle-value" id="engineStatus">stopped</span></div>
+        <br>
+        <div class="line" style="color:var(--accent);font-size:0.7rem;" id="logLine">▶ awaiting activation...</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TECH STACK -->
+<section id="tech" class="tech-section">
+  <div class="section-tag">Built With</div>
+  <h2 class="section-title reveal">TECH STACK</h2>
+  <div class="tech-grid">
+    <div class="tech-card reveal">
+      <div class="tech-icon">👁️</div>
+      <div class="tech-name">OpenCV</div>
+      <div class="tech-role">Camera & Vision</div>
+    </div>
+    <div class="tech-card reveal">
+      <div class="tech-icon">🖐</div>
+      <div class="tech-name">MediaPipe</div>
+      <div class="tech-role">Hand Tracking</div>
+    </div>
+    <div class="tech-card reveal">
+      <div class="tech-icon">🖱️</div>
+      <div class="tech-name">PyAutoGUI</div>
+      <div class="tech-role">Input Automation</div>
+    </div>
+    <div class="tech-card reveal">
+      <div class="tech-icon">🔊</div>
+      <div class="tech-name">Pycaw</div>
+      <div class="tech-role">Audio Control</div>
+    </div>
+    <div class="tech-card reveal">
+      <div class="tech-icon">☀️</div>
+      <div class="tech-name">SBC</div>
+      <div class="tech-role">Brightness Control</div>
+    </div>
+  </div>
+</section>
+
+<!-- SETUP -->
+<section id="setup" class="setup-section">
+  <div class="section-tag">Installation</div>
+  <h2 class="section-title reveal">QUICK SETUP</h2>
+  <div class="setup-steps">
+    <div class="setup-step reveal">
+      <div class="step-num">01</div>
+      <div class="step-content">
+        <h4>Create Virtual Environment</h4>
+        <p>Set up an isolated Python environment for the project</p>
+      </div>
+      <div class="step-code">python -m venv gesture_env</div>
+    </div>
+    <div class="setup-step reveal">
+      <div class="step-num">02</div>
+      <div class="step-content">
+        <h4>Activate Environment</h4>
+        <p>Activate the virtual environment in PowerShell</p>
+      </div>
+      <div class="step-code">gesture_env\Scripts\activate</div>
+    </div>
+    <div class="setup-step reveal">
+      <div class="step-num">03</div>
+      <div class="step-content">
+        <h4>Install Dependencies</h4>
+        <p>Install all required Python packages</p>
+      </div>
+      <div class="step-code">pip install opencv-python mediapipe pyautogui pycaw comtypes screen-brightness-control</div>
+    </div>
+    <div class="setup-step reveal">
+      <div class="step-num">04</div>
+      <div class="step-content">
+        <h4>Run the Script</h4>
+        <p>Launch the gesture control system</p>
+      </div>
+      <div class="step-code">python main.py</div>
+    </div>
+    <div class="setup-step reveal">
+      <div class="step-num">05</div>
+      <div class="step-content">
+        <h4>Allow Camera Access</h4>
+        <p>Grant webcam permissions when prompted. Press Q to quit.</p>
+      </div>
+      <div class="step-code">Allow camera → Start gesturing</div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">GestureOS</div>
+  <div class="footer-text">Built with OpenCV · MediaPipe · PyAutoGUI · Python</div>
+  <div class="footer-text" style="color:var(--accent);">v2.0 — 14 Gestures Active</div>
+</footer>
+
+<script>
+  // Custom cursor
+  const cursor = document.getElementById('cursor');
+  const ring = document.getElementById('cursorRing');
+  let mx = 0, my = 0, rx = 0, ry = 0;
+  document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
+  function animCursor() {
+    cursor.style.left = mx - 6 + 'px';
+    cursor.style.top = my - 6 + 'px';
+    rx += (mx - rx) * 0.15;
+    ry += (my - ry) * 0.15;
+    ring.style.left = rx - 18 + 'px';
+    ring.style.top = ry - 18 + 'px';
+    requestAnimationFrame(animCursor);
+  }
+  animCursor();
+
+  // Scroll reveal
+  const reveals = document.querySelectorAll('.reveal');
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach((e, i) => {
+      if (e.isIntersecting) {
+        setTimeout(() => e.target.classList.add('visible'), i * 80);
+      }
+    });
+  }, { threshold: 0.1 });
+  reveals.forEach(r => obs.observe(r));
+
+  // Toggle logic
+  let active = false;
+  let sessionStart = null;
+  let timerInterval = null;
+  const gestures = ['Cursor Move','Single Click','Double Click','Right Click','Scroll Up','Scroll Down','Zoom In','Zoom Out','Volume Up','Volume Down','Brightness Up','Screenshot'];
+
+  function toggleGesture() {
+    active = !active;
+    const btn = document.getElementById('mainToggle');
+    const status = document.getElementById('toggleStatus');
+    btn.classList.toggle('active', active);
+
+    if (active) {
+      status.textContent = 'ACTIVE';
+      status.className = 'toggle-status on';
+      document.getElementById('statusVal').textContent = 'Running';
+      document.getElementById('statusVal').className = 'status-val active';
+      document.getElementById('cameraVal').textContent = 'Detected (0)';
+      document.getElementById('handsVal').textContent = '1';
+      document.getElementById('serverStatus').textContent = 'connected';
+      document.getElementById('mpStatus').textContent = 'running';
+      document.getElementById('camStatus').textContent = 'streaming';
+      document.getElementById('engineStatus').textContent = 'active';
+      document.getElementById('logLine').textContent = '▶ gesture engine started...';
+      sessionStart = Date.now();
+      timerInterval = setInterval(updateTimer, 1000);
+      simulateGestures();
+    } else {
+      status.textContent = 'INACTIVE';
+      status.className = 'toggle-status';
+      document.getElementById('statusVal').textContent = 'Offline';
+      document.getElementById('statusVal').className = 'status-val';
+      document.getElementById('cameraVal').textContent = 'Not detected';
+      document.getElementById('handsVal').textContent = '0';
+      document.getElementById('gestureVal').textContent = 'None';
+      document.getElementById('serverStatus').textContent = 'waiting...';
+      document.getElementById('mpStatus').textContent = 'idle';
+      document.getElementById('camStatus').textContent = 'off';
+      document.getElementById('engineStatus').textContent = 'stopped';
+      document.getElementById('logLine').textContent = '▶ engine stopped.';
+      document.getElementById('timeVal').textContent = '00:00';
+      clearInterval(timerInterval);
+    }
+  }
+
+  function updateTimer() {
+    if (!sessionStart) return;
+    const s = Math.floor((Date.now() - sessionStart) / 1000);
+    const m = Math.floor(s / 60).toString().padStart(2,'0');
+    const sec = (s % 60).toString().padStart(2,'0');
+    document.getElementById('timeVal').textContent = `${m}:${sec}`;
+  }
+
+  function simulateGestures() {
+    if (!active) return;
+    setTimeout(() => {
+      if (!active) return;
+      const g = gestures[Math.floor(Math.random() * gestures.length)];
+      document.getElementById('gestureVal').textContent = g;
+      document.getElementById('logLine').textContent = `▶ detected: ${g.toLowerCase()}`;
+      simulateGestures();
+    }, 1500 + Math.random() * 2000);
+  }
+</script>
+</body>
+</html>
